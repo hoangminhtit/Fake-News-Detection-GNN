@@ -1,126 +1,129 @@
 # Graph Mining - Fake News Detection
 
-## Overview
-Dự án xây dựng đồ thị lan truyền tin giả (propagation graph) từ dữ liệu tin tức. Gồm 2 bước xử lý:
-- **Member 1**: Tiền xử lý dữ liệu → tạo nodes.csv + edges.csv
-- **Member 2**: Xây dựng đồ thị → tạo edge_index.npy + visualizations
+Dự án phát hiện tin giả sử dụng GCN với cấu trúc đồ thị.
 
-## Project Structure
-```
-data/
-  ├── raw/              ← Input: fake.csv, true.csv (hoặc WELFake_Dataset.csv)
-  ├── processed/        ← Output Member 1: nodes.csv, edges.csv
-  └── graph/            ← Output Member 2: edge_index.npy
+---
 
-output/
-  └── visualizations/   ← Output Member 2: PNG files (4 biểu đồ)
-```
+## 🚀 Cách chạy
 
-## 1. Setup
-
-### Install Dependencies
+### 1. Cài đặt thư viện
 ```bash
-pip install pandas numpy scikit-learn scipy networkx matplotlib seaborn
+pip install pandas numpy scikit-learn scipy networkx matplotlib seaborn torch torch-geometric
 ```
 
-### Download Data
+### 2. Chuẩn bị dữ liệu
+Đặt file CSV vào folder `data/raw/`:
 
-#### Option A: Sử dụng kagglehub (Easy - Recommended)
-```bash
-pip install kagglehub
+**Option 1: Hai file riêng (Split mode)**
+- `true.csv` - tin thật
+- `fake.csv` - tin giả
 
-# Chạy cell cuối cùng trong fakenews-create-node-edge.ipynb
-# Hoặc chạy thủ công từ Python:
-import kagglehub
-kagglehub.dataset_download("bhavikjikadara/fake-news-detection")
-# Files sẽ download và tự động lưu vào data/raw/
-```
+**Option 2: Một file (Single mode)**
+- `dataset.csv` với cột `label` (0=thật, 1=giả)
 
-#### Option B: Download thủ công
-1. Vào https://www.kaggle.com/datasets/bhavikjikadara/fake-news-detection
-2. Click "Download"
-3. Giải nén → copy `fake.csv` + `true.csv` vào `data/raw/`
-
-#### Option C: Có sẵn WELFake_Dataset.csv
-```
-data/raw/WELFake_Dataset.csv đã có trong folder
-```
-
-## 2. Xử Lý Dữ Liệu (Member 1)
-
-### Lấy toàn bộ dữ liệu
-```bash
-python preprocessing.py split
-# Hoặc với single file
-python preprocessing.py single --input data/raw/WELFake_Dataset.csv
-```
-
-### Lấy N sample
-```bash
-python preprocessing.py split --sample-size 6000
-```
-
-**Output**: `data/processed/nodes.csv` + `data/processed/edges.csv`
-
-## 3. Xây Dựng Đồ Thị (Member 2)
+### 3. Chạy pipeline
 
 ```bash
-python graph_construction.py 
+cd scripts
+python main.py                # Full pipeline
+
+# Hoặc từng bước riêng lẻ
+python main.py preprocess     # Bước 1: Preprocessing
+python main.py graph          # Bước 2: Graph construction
+python main.py visualize      # Bước 3: Visualization
 ```
 
-**Output**:
-- `data/graph/edge_index.npy` - Đồ thị ở định dạng PyTorch Geometric
-- `output/visualizations/degree_distribution.png`
-- `output/visualizations/indegree_outdegree.png`
-- `output/visualizations/label_distribution.png`
-- `output/visualizations/graph_visualization.png`
+---
 
-## 4. Pipeline Hoàn Chỉnh
+## ⚙️ Thay đổi số lượng dữ liệu
 
-```bash
-# Bước 1: Preprocessing (Member 1)
-python preprocessing.py 
+Hiện tại mặc định xử lý **3000 dòng dữ liệu** để tiết kiệm bộ nhớ.
 
-# Bước 2: Graph Construction (Member 2)
-python graph_construction.py
+### Để thay đổi:
 
-# Xong! Dữ liệu sẵn sàng cho GNN training
+Mở file `scripts/main.py` (dòng ~38) tìm:
+```python
+preprocessor.run_pipeline(sample_size=3000, mode=mode)
 ```
 
-## Key Features
+**Thay đổi số 3000 thành:**
+- `sample_size=1000` → 1000 dòng (nhanh, chiếm ít bộ nhớ)
+- `sample_size=5000` → 5000 dòng (trung bình)
+- `sample_size=-1` → Toàn bộ dữ liệu (lâu, tốn bộ nhớ)
 
-| Tính năng | Chi tiết |
-|-----------|---------|
-| Input modes | Split (fake.csv + true.csv) hoặc Single (1 file) |
-| Auto-detection | Tự động chuyển sang single mode nếu split files không có |
-| Sampling | Lấy toàn bộ (default) hoặc N mẫu |
-| Graph construction | KNN graph (k=5) với cosine similarity |
-| Output format | `.npy` (NumPy) thay vì `.pt` (PyTorch) |
-| Visualizations | 4 biểu đồ phân tích đồ thị |
-
-## Lưu Ý
-
-- Default: lấy **toàn bộ** dữ liệu (sample_size = -1)
-- Để lấy 6000 mẫu: `--sample-size 6000`
-- TF-IDF features: 2000 features, max_features
-- KNN neighbors: k=5 (cosine similarity)
-- Graph: undirected (symmetrize edges)
-
-## Troubleshooting
-
-### Kaggle download fails
-```
-→ Download thủ công từ Kaggle hoặc dùng WELFake_Dataset.csv có sẵn
+**Ví dụ:**
+```python
+preprocessor.run_pipeline(sample_size=500, mode=mode)  # Dùng 500 dòng
 ```
 
-### Memory issue với toàn bộ dữ liệu
+---
+
+## 📊 Output
+
+Sau khi chạy xong, sẽ có:
+
+| Thư mục | File | Mô tả |
+|---------|------|-------|
+| `data/processed/` | `nodes.csv` | Đặc trưng của các node |
+| `data/processed/` | `edges.csv` | Kết nối giữa các node |
+| `data/graph/` | `edge_index.npy` | Format cho PyTorch (dùng cho GCN model) |
+| `output/visualizations/` | 4 file PNG | 4 biểu đồ phân tích |
+
+---
+
+## 📁 Cấu trúc thư mục
+
 ```
-→ Giảm sample_size: python preprocessing.py split --sample-size 10000
+GraphMining/
+├── scripts/
+│   ├── main.py                      # Pipeline logic
+│   ├── preprocessing.py             # Xử lý dữ liệu
+│   ├── graph_construction.py        # Xây dựng đồ thị
+│   └── visualization.py             # Vẽ biểu đồ
+├── data/
+│   ├── raw/                         # Đặt file CSV ở đây
+│   ├── processed/                   # Output từ preprocessing
+│   └── graph/                       # Output từ graph construction
+└── output/
+    └── visualizations/              # Các biểu đồ (PNG)
 ```
 
-### Files not found
-```
-→ Kiểm tra data/raw/ có fake.csv + true.csv (hoặc WELFake_Dataset.csv)
-```
+---
 
+## 🔧 Troubleshooting
 
+**"No data files found in data/raw"**
+- ✓ Kiểm tra file CSV có trong `data/raw/` không
+- ✓ Phải có đúng tên: `true.csv` + `fake.csv` hoặc `dataset.csv` với cột `label`
+
+**"Run preprocessing first"**
+- ✓ Chạy `python main.py preprocess` trước
+
+**"Build graph first"**
+- ✓ Chạy `python main.py graph` (sau preprocessing)
+
+**Memory/quá lâu**
+- ✓ Giảm `sample_size` xuống (ví dụ: 1000 thay vì 3000)
+
+**EUDC font warning**
+- ✓ Bỏ qua (Windows Qt warning, không ảnh hưởng output)
+
+---
+
+## 📈 Pipeline Flow
+
+```
+Raw CSV 
+  ↓
+Preprocessing (TF-IDF + KNN graph)
+  ↓
+nodes.csv + edges.csv
+  ↓
+Graph Construction (NetworkX → PyTorch format)
+  ↓
+edge_index.npy
+  ↓
+Visualization (4 plots)
+  ↓
+Completed! ✓
+```

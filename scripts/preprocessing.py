@@ -13,8 +13,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
-import argparse
 from datetime import datetime
+
+# Determine project root (parent of scripts directory)
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 
 
 class DataPreprocessor:
@@ -394,71 +397,3 @@ class DataPreprocessor:
             import traceback
             traceback.print_exc()
             return False
-
-
-def main():
-    """Command line interface"""
-    parser = argparse.ArgumentParser(
-        description='Data Preprocessing for Fake News Detection'
-    )
-    
-    # Subcommands for different modes
-    subparsers = parser.add_subparsers(dest='mode', help='Input data mode')
-    
-    # Mode 1: Split files
-    split_parser = subparsers.add_parser('split', help='Load from true.csv + fake.csv')
-    split_parser.add_argument('--raw-dir', type=str, default='data/raw',
-                             help='Raw data directory containing true.csv and fake.csv')
-    split_parser.add_argument('--processed-dir', type=str, default='data/processed',
-                             help='Processed data output directory')
-    split_parser.add_argument('--sample-size', type=int, default=6000,
-                             help='Number of samples to process')
-    
-    # Mode 2: Single file
-    single_parser = subparsers.add_parser('single', help='Load from single CSV file with label column')
-    single_parser.add_argument('--input', type=str, required=True,
-                              help='Path to input CSV file (must have label column)')
-    single_parser.add_argument('--processed-dir', type=str, default='data/processed',
-                              help='Processed data output directory')
-    single_parser.add_argument('--sample-size', type=int, default=6000,
-                              help='Number of samples to process')
-    
-    args = parser.parse_args()
-    
-    # If no subcommand specified, show help and default to split mode
-    if args.mode is None:
-        args.mode = 'split'
-        args.raw_dir = 'data/raw'
-        args.processed_dir = 'data/processed'
-        args.sample_size = 6000
-        args.input = None
-    
-    # Create preprocessor
-    preprocessor = DataPreprocessor(
-        raw_dir=getattr(args, 'raw_dir', 'data/raw'),
-        processed_dir=args.processed_dir,
-        verbose=True
-    )
-    
-    # Run pipeline based on mode
-    if args.mode == 'split':
-        success = preprocessor.run_pipeline(
-            sample_size=args.sample_size,
-            mode='split'
-        )
-    elif args.mode == 'single':
-        success = preprocessor.run_pipeline(
-            sample_size=args.sample_size,
-            mode='single',
-            input_file=args.input
-        )
-    else:
-        print(f"Unknown mode: {args.mode}")
-        success = False
-    
-    import sys
-    sys.exit(0 if success else 1)
-
-
-if __name__ == '__main__':
-    main()
